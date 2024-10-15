@@ -45,9 +45,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Aos core lib
-if(WITH_CORELIB)
-    include(AosCoreLib)
-endif()
+# if(WITH_CORELIB)
+# include(ExternalLibs)
+# endif()
 
 # gRPC lib
 find_package(gRPC REQUIRED)
@@ -60,21 +60,25 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(Systemd libsystemd REQUIRED)
 
 if(WITH_TEST)
-    find_package(GTest REQUIRED)
-
-    include(GoogleTest)
+    # Check if GTest has already been found or included
+    if(NOT TARGET GTest::GTest)
+        find_package(GTest REQUIRED)
+        include(GoogleTest)
+    endif()
 
     enable_testing()
 endif()
 
 if(WITH_COVERAGE)
-    include(CodeCoverage)
+    # Prevent re-including CodeCoverage module
+    if(NOT TARGET CodeCoverage)
+        include(CodeCoverage)
+        append_coverage_compiler_flags()
 
-    append_coverage_compiler_flags()
+        set(COVERAGE_EXCLUDES "build/*" "/usr/*" "*_test.cpp")
 
-    set(COVERAGE_EXCLUDES "build/*" "/usr/*" "*_test.cpp")
-
-    setup_target_for_coverage_lcov(NAME coverage EXECUTABLE ctest)
+        setup_target_for_coverage_lcov(NAME coverage EXECUTABLE ctest)
+    endif()
 endif()
 
 # ######################################################################################################################
@@ -87,6 +91,8 @@ include_directories(include)
 # Targets
 # ######################################################################################################################
 
+# include submodules
+add_subdirectory(external/aos_core_lib_cpp)
 add_subdirectory(src)
 
 if(WITH_TEST)
