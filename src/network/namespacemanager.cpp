@@ -101,7 +101,7 @@ Error NamespaceManager::CreateNetworkNamespace(const String& ns)
         return Error(ErrorEnum::eFailed, strerror(errno));
     }
 
-    if (err = mNetIf->BringUpInterface("lo"); !err.IsNone()) {
+    if (err = mNetIf->SetupLink("lo"); !err.IsNone()) {
         return err;
     }
 

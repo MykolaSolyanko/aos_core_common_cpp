@@ -7,9 +7,105 @@
 #ifndef NETWORKINTERFACEMANAGER_HPP_
 #define NETWORKINTERFACEMANAGER_HPP_
 
+#include <optional>
+#include <string>
+
+#include <sys/socket.h>
+
 #include <aos/sm/networkmanager.hpp>
+namespace aos::sm::networkmanager {
+
+/**
+ * Link attributes.
+ */
+struct LinkAttrs {
+    std::string mName;
+    int         mParentIndex = 0;
+    int         mTxQLen      = -1;
+};
+
+/**
+ * IP address.
+ */
+struct IPAddr {
+    std::string mIP;
+    std::string mSubnet;
+    int         mFamily = AF_INET;
+    std::string mLabel;
+};
+
+/**
+ * Route info.
+ */
+struct RouteInfo {
+    std::optional<std::string> mDestination;
+    int                        mLinkIndex;
+};
+
+} // namespace aos::sm::networkmanager
 
 namespace aos::common::network {
+
+/**
+ * Bridge link.
+ */
+class Bridge : public sm::networkmanager::LinkItf {
+public:
+    /**
+     * @brief Construct a new Bridge object
+     *
+     */
+    explicit Bridge(const sm::networkmanager::LinkAttrs& attrs);
+
+    /**
+     * @brief Get the type of the link
+     *
+     */
+    const sm::networkmanager::LinkAttrs& GetAttrs() const override;
+
+    /**
+     * @brief Get the type of the link
+     *
+     */
+    const char* GetType() const override;
+
+private:
+    sm::networkmanager::LinkAttrs mAttrs;
+};
+
+/**
+ * Vlan link.
+ */
+class Vlan : public sm::networkmanager::LinkItf {
+public:
+    /**
+     * @brief Construct a new Vlan object
+     *
+     */
+    Vlan(const sm::networkmanager::LinkAttrs& attrs, int vlanId);
+
+    /**
+     * @brief Get the type of the link
+     *
+     */
+    const sm::networkmanager::LinkAttrs& GetAttrs() const override;
+
+    /**
+     * @brief Get the type of the link
+     *
+     */
+    const char* GetType() const override;
+
+    /**
+     * @brief Get the vlan id
+     *
+     */
+    int GetVlanId() const;
+
+private:
+    sm::networkmanager::LinkAttrs mAttrs;
+    int                           mVlanId {-1};
+};
 
 /**
  * Network interface manager.
@@ -22,7 +118,15 @@ public:
      * @param ifname interface name.
      * @return Error.
      */
-    Error RemoveInterface(const String& ifname) override;
+    Error DeleteLink(const String& ifname) override;
+
+    /**
+     * Adds link.
+     *
+     * @param link link.
+     * @return Error.
+     */
+    Error AddLink(const sm::networkmanager::LinkItf* link) override;
 
     /**
      * Brings up interface.
@@ -30,7 +134,53 @@ public:
      * @param ifname interface name.
      * @return Error.
      */
-    Error BringUpInterface(const String& ifname) override;
+    Error SetupLink(const String& ifname) override;
+
+    /**
+     * Gets address list.
+     *
+     * @param ifname interface name.
+     * @param family address family.
+     * @param[out] addr address list.
+     * @return Error.
+     */
+    Error GetAddrList(const String& ifname, int family, Array<sm::networkmanager::IPAddr>& addr) const override;
+
+    /**
+     * Adds address.
+     *
+     * @param ifname interface name.
+     * @param addr address.
+     * @return Error.
+     */
+    Error AddAddr(const String& ifname, const sm::networkmanager::IPAddr& addr) override;
+
+    /**
+     * Deletes address.
+     *
+     * @param ifname interface name.
+     * @param addr address.
+     * @return Error.
+     */
+    Error DeleteAddr(const String& ifname, const sm::networkmanager::IPAddr& addr) override;
+
+    /**
+     * Sets master.
+     *
+     * @param ifname interface name.
+     * @param master master.
+     * @return Error.
+     */
+    Error SetMasterLink(const String& ifname, const String& master) override;
+
+    /**
+     * Gets route list.
+     *
+     * @param ifname interface name.
+     * @param[out] routes routes.
+     * @return Error.
+     */
+    Error GetRouteList(const String& ifname, Array<sm::networkmanager::RouteInfo>& routes) const override;
 };
 
 } // namespace aos::common::network
