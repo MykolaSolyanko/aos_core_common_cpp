@@ -35,6 +35,11 @@ jobs:
           fetch-depth: 0
           submodules: "recursive"
 
+      - name: Prepare
+        run: |
+          apt update
+          apt install libnl-3-dev libnl-route-3-dev -y
+
       - name: Build and test
         run: |
           mkdir build
