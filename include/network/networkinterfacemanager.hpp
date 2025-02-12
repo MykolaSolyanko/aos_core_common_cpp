@@ -20,8 +20,8 @@ namespace aos::sm::networkmanager {
  */
 struct LinkAttrs {
     std::string mName;
-    int         mParentIndex = 0;
-    int         mTxQLen      = -1;
+    int         mParentIndex {};
+    int         mTxQLen {};
 };
 
 /**
@@ -110,7 +110,8 @@ private:
 /**
  * Network interface manager.
  */
-class NetworkInterfaceManager : public sm::networkmanager::NetworkInterfaceManagerItf {
+class NetworkInterfaceManager : public sm::networkmanager::NetworkInterfaceManagerItf,
+                                public sm::networkmanager::NetworkInterfaceFactoryItf {
 public:
     /**
      * Removes interface.
@@ -176,11 +177,34 @@ public:
     /**
      * Gets route list.
      *
-     * @param ifname interface name.
      * @param[out] routes routes.
      * @return Error.
      */
-    Error GetRouteList(const String& ifname, Array<sm::networkmanager::RouteInfo>& routes) const override;
+    Error GetRouteList(Array<sm::networkmanager::RouteInfo>& routes) const override;
+
+    /**
+     * Creates bridge.
+     *
+     * @param name bridge name.
+     * @param ip ip.
+     * @param subnet subnet.
+     * @return Error.
+     */
+    Error CreateBridge(const String& name, const String& ip, const String& subnet) override;
+
+    /**
+     * Creates vlan.
+     *
+     * @param name vlan name.
+     * @param vlanId vlan id.
+     * @return Error.
+     */
+    Error CreateVlan(const String& name, uint64_t vlanId) override;
+
+private:
+    static constexpr size_t kMaxRouteCount = 20;
+
+    RetWithError<int> GetMasterInterfaceIndex() const;
 };
 
 } // namespace aos::common::network

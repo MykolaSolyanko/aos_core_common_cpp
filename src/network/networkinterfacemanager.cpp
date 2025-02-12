@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include <arpa/inet.h>
@@ -443,9 +445,9 @@ Error NetworkInterfaceManager::SetMasterLink(const String& ifname, const String&
     return ErrorEnum::eNone;
 }
 
-Error NetworkInterfaceManager::GetRouteList(const String& ifname, Array<sm::networkmanager::RouteInfo>& routes) const
+Error NetworkInterfaceManager::GetRouteList(Array<sm::networkmanager::RouteInfo>& routes) const
 {
-    LOG_DBG() << "List routes for interface: ifname=" << ifname;
+    LOG_DBG() << "List routes";
 
     auto sockDeleter = [](nl_sock* sock) { nl_socket_free(sock); };
     auto sock        = std::unique_ptr<nl_sock, decltype(sockDeleter)>(nl_socket_alloc(), sockDeleter);
@@ -490,6 +492,103 @@ Error NetworkInterfaceManager::GetRouteList(const String& ifname, Array<sm::netw
                 return err;
             }
         }
+    }
+
+    return ErrorEnum::eNone;
+}
+
+RetWithError<int> NetworkInterfaceManager::GetMasterInterfaceIndex() const
+{
+    LOG_DBG() << "Get master interface index";
+
+    StaticArray<aos::sm::networkmanager::RouteInfo, kMaxRouteCount> routes;
+    if (auto err = GetRouteList(routes); !err.IsNone()) {
+        return {-1, err};
+    }
+
+    for (const auto& route : routes) {
+        if (!route.mDestination.has_value()) {
+            return route.mLinkIndex;
+        }
+    }
+
+    return {-1, Error(ErrorEnum::eFailed, "No master interface found")};
+}
+
+Error NetworkInterfaceManager::CreateBridge(const String& name, const String& ip, const String& subnet)
+{
+    LOG_DBG() << "Create bridge: name=" << name << ", ip=" << ip << ", subnet=" << subnet;
+
+    aos::sm::networkmanager::LinkAttrs bridgeAttrs;
+    bridgeAttrs.mName   = name.CStr();
+    bridgeAttrs.mTxQLen = -1;
+
+    aos::common::network::Bridge bridge(bridgeAttrs);
+
+    if (auto err = AddLink(&bridge); !err.IsNone()) {
+        return err;
+    }
+
+    if (auto err = SetupLink(name); !err.IsNone()) {
+        return err;
+    }
+
+    StaticArray<aos::sm::networkmanager::IPAddr, 1> addrs;
+
+    if (auto err = GetAddrList(name, AF_INET, addrs); !err.IsNone()) {
+        return err;
+    }
+
+    if (!addrs.IsEmpty()) {
+        if (addrs.Size() > 1) {
+            return Error(
+                ErrorEnum::eFailed, ("Bridge " + std::string(name.CStr()) + " has more than one address").c_str());
+        }
+
+        if (String(addrs[0].mIP.c_str()) == ip) {
+            return ErrorEnum::eNone;
+        }
+
+        aos::sm::networkmanager::IPAddr ipAddr;
+        ipAddr.mIP = addrs[0].mIP;
+
+        if (auto err = DeleteAddr(name, ipAddr); !err.IsNone()) {
+            return err;
+        }
+    }
+
+    aos::sm::networkmanager::IPAddr ipAddr;
+    ipAddr.mIP     = ip.CStr();
+    ipAddr.mSubnet = subnet.CStr();
+
+    if (auto err = AddAddr(name, ipAddr); !err.IsNone()) {
+        return err;
+    }
+
+    return ErrorEnum::eNone;
+}
+
+Error NetworkInterfaceManager::CreateVlan(const String& name, uint64_t vlanId)
+{
+    LOG_DBG() << "Create vlan: name=" << name << ", vlanId=" << vlanId;
+
+    auto [masterIndex, err] = GetMasterInterfaceIndex();
+    if (!err.IsNone()) {
+        return err;
+    }
+
+    aos::sm::networkmanager::LinkAttrs vlanAttrs;
+    vlanAttrs.mName        = name.CStr();
+    vlanAttrs.mParentIndex = masterIndex;
+
+    aos::common::network::Vlan vlan(vlanAttrs, vlanId);
+
+    if (auto err = AddLink(&vlan); !err.IsNone()) {
+        return err;
+    }
+
+    if (auto err = SetupLink(name); !err.IsNone()) {
+        return err;
     }
 
     return ErrorEnum::eNone;
