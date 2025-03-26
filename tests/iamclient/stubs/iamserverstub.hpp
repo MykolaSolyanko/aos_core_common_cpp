@@ -18,12 +18,13 @@
 /**
  * Test IAM server.
  */
-class TestIAMServer final : public iamanager::v5::IAMPublicService::Service {
+class TestIAMServerStub final : public iamanager::v5::IAMPublicService::Service,
+                                public iamanager::v5::IAMPermissionsService::Service {
 public:
     /**
      * Constructor.
      */
-    TestIAMServer() { mServer = CreateServer(); }
+    TestIAMServerStub() { mServer = CreateServer(); }
 
     /**
      * Get certificate type.
@@ -88,6 +89,7 @@ private:
         grpc::ServerBuilder builder;
         builder.AddListeningPort("localhost:8002", grpc::InsecureServerCredentials());
         builder.RegisterService(static_cast<iamanager::v5::IAMPublicService::Service*>(this));
+        builder.RegisterService(static_cast<iamanager::v5::IAMPermissionsService::Service*>(this));
 
         return builder.BuildAndStart();
     }
@@ -104,8 +106,41 @@ private:
         return grpc::Status::OK;
     }
 
+    grpc::Status GetNodeInfo(grpc::ServerContext*, [[maybe_unused]] const google::protobuf::Empty* request,
+        iamanager::v5::NodeInfo* response) override
+    {
+        response->set_node_id("node_id");
+        response->set_node_type("node_type");
+        response->set_name("name");
+        response->set_status("provisioned");
+        response->set_os_type("os_type");
+
+        iamanager::v5::CPUInfo* cpuInfo = response->add_cpus();
+        cpuInfo->set_model_name("model_name");
+        cpuInfo->set_num_cores(1);
+        cpuInfo->set_num_threads(1);
+        cpuInfo->set_arch("arch");
+        cpuInfo->set_arch_family("arch_family");
+        cpuInfo->set_max_dmips(1);
+
+        response->set_max_dmips(1);
+        response->set_total_ram(1);
+
+        iamanager::v5::PartitionInfo* partitionInfo = response->add_partitions();
+        partitionInfo->set_name("name");
+        partitionInfo->add_types("types");
+        partitionInfo->set_total_size(1);
+        partitionInfo->set_path("path");
+
+        iamanager::v5::NodeAttribute* nodeAttribute = response->add_attrs();
+        nodeAttribute->set_name("name");
+        nodeAttribute->set_value("value");
+
+        return grpc::Status::OK;
+    }
+
     grpc::Status SubscribeCertChanged(grpc::ServerContext*, const iamanager::v5::SubscribeCertChangedRequest* request,
-        grpc::ServerWriter<iamanager::v5::CertInfo>* writer)
+        grpc::ServerWriter<iamanager::v5::CertInfo>* writer) override
     {
         mCertType = request->type();
 
@@ -119,6 +154,20 @@ private:
             mCV.wait(lock, [this] { return mClose; });
         }
 
+        return grpc::Status::OK;
+    }
+
+    grpc::Status RegisterInstance(grpc::ServerContext*, [[maybe_unused]] const iamanager::v5::RegisterInstanceRequest*,
+        iamanager::v5::RegisterInstanceResponse* response) override
+    {
+        response->set_secret("secret");
+
+        return grpc::Status::OK;
+    }
+
+    grpc::Status UnregisterInstance(
+        grpc::ServerContext*, const iamanager::v5::UnregisterInstanceRequest*, google::protobuf::Empty*) override
+    {
         return grpc::Status::OK;
     }
 

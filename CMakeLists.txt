@@ -33,6 +33,15 @@ message(STATUS)
 
 # aos core api options
 set(WITH_IAM_API ON)
+set(WITH_SM_API ON)
+
+# ######################################################################################################################
+# Config
+# ######################################################################################################################
+
+set(AOS_CORE_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/aos_core_lib_cpp)
+set(AOS_CORE_COMMON_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(AOS_STACK_USAGE 4096)
 
 # ######################################################################################################################
 # Compiler flags
@@ -40,9 +49,6 @@ set(WITH_IAM_API ON)
 
 add_compile_options(-fPIC -Wall -Werror -Wextra -Wpedantic)
 set(CMAKE_CXX_STANDARD 17)
-
-set(AOS_CORE_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/aos_core_lib_cpp)
-set(AOS_CORE_COMMON_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 # ######################################################################################################################
 # Dependencies
@@ -63,13 +69,14 @@ if(WITH_COVERAGE)
 
     append_coverage_compiler_flags()
 
-    set(COVERAGE_EXCLUDES "build/*" "/usr/*" "*_test.cpp")
+    set(COVERAGE_EXCLUDES "build/*" "tests/*" "/usr/*")
 
     setup_target_for_coverage_lcov(
         NAME
         coverage
         EXECUTABLE
         ctest
+        SONARQUBE
         LCOV_ARGS
         --ignore-errors
         mismatch,negative
@@ -86,6 +93,7 @@ add_subdirectory(src)
 if(WITH_TEST)
     add_subdirectory(tests)
     add_subdirectory(external/aos_core_lib_cpp/tests/utils)
+    add_subdirectory(external/aos_core_lib_cpp/tests/include)
 endif()
 
 # ######################################################################################################################

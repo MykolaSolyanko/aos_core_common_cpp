@@ -8,12 +8,12 @@
 #ifndef EXCEPTION_HPP_
 #define EXCEPTION_HPP_
 
-#include <sstream>
-
 #include <Poco/Exception.h>
 
 #include <aos/common/tools/error.hpp>
 #include <aos/common/tools/string.hpp>
+
+#include <aos/common/tools/log.hpp>
 
 /**
  * Throws exception with Aos error and specified message.
@@ -38,42 +38,38 @@ public:
     /**
      * Creates Aos exception instance.
      *
+     * @param message message.
      * @param err Aos error.
      */
-    explicit AosException(const std::string& message, const aos::Error& err = aos::ErrorEnum::eFailed)
-        : Poco::Exception(message, err.Message(), err.Errno())
-        , mError(err)
-    {
-        std::stringstream ss;
-
-        ss << message;
-
-        StaticString<cMaxErrorStrLen> errStr;
-
-        if (errStr.Convert(err).IsNone()) {
-            ss << ": " << errStr.CStr();
-        }
-
-        Poco::Exception::message(ss.str());
-    };
+    explicit AosException(const std::string& message, const Error& err = ErrorEnum::eFailed);
 
     /**
      * Returns Aos error.
      *
-     * @return aos::Error.
+     * @return Error.
      */
-    aos::Error GetError() const { return mError; }
+    Error GetError() const { return mError; }
 
     /**
      * Returns a static string describing the exception.
      *
      * @return const char*
      */
-    const char* what() const noexcept override { return mError.Message(); }
+    const char* name() const noexcept override { return "Aos exception"; }
 
 private:
-    aos::Error mError;
+    Error mError;
 };
+
+/**
+ * Converts exception to Aos error.
+ *
+ * @param e exception.
+ * @param err error.
+ *
+ * @return Error.
+ */
+Error ToAosError(const std::exception& e, ErrorEnum err = ErrorEnum::eFailed);
 
 } // namespace aos::common::utils
 

@@ -8,6 +8,9 @@
 #include <fstream>
 
 #include <Poco/JSON/Object.h>
+#include <Poco/JSON/Parser.h>
+
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "utils/grpchelper.hpp"
@@ -185,6 +188,35 @@ TEST_F(JsonTest, CaseInsensitiveObjectWrapperFromPocoVarFails)
     }
 }
 
+TEST_F(JsonTest, ForEach)
+{
+    try {
+        MockFunction<void(const Poco::Dynamic::Var&)> mockFunction;
+
+        Poco::JSON::Object::Ptr object      = new Poco::JSON::Object();
+        Poco::JSON::Array::Ptr  stringArray = new Poco::JSON::Array();
+
+        const std::vector<std::string> expectedStrings = {"value1", "value2", "value3"};
+
+        for (const auto& string : expectedStrings) {
+            stringArray->add(string);
+        }
+
+        object->set("exists", stringArray);
+
+        EXPECT_CALL(mockFunction, Call(_)).Times(expectedStrings.size());
+        ForEach(CaseInsensitiveObjectWrapper(object), "exists",
+            [&mockFunction](const auto& value) { mockFunction.Call(value); });
+
+        EXPECT_CALL(mockFunction, Call(_)).Times(0);
+        ForEach(CaseInsensitiveObjectWrapper(object), "doesnot-exist",
+            [&mockFunction](const auto& value) { mockFunction.Call(value); });
+
+    } catch (const Poco::Exception& e) {
+        FAIL() << e.displayText();
+    }
+}
+
 TEST_F(JsonTest, ParseValueArraySucceeds)
 {
     try {
@@ -251,6 +283,34 @@ TEST_F(JsonTest, WriteJsonToFileFails)
     std::string path = "/non/existent/path/test.json";
 
     EXPECT_EQ(WriteJsonToFile(object, path), aos::ErrorEnum::eFailed);
+}
+
+TEST_F(JsonTest, ToJSONArray)
+{
+    Poco::JSON::Array array
+        = ToJsonArray(std::vector<int> {1, 2}, [](const auto value) { return std::to_string(value).append("-str"); });
+
+    ASSERT_EQ(array.size(), 2);
+
+    EXPECT_EQ(array.get(0).convert<std::string>(), "1-str");
+    EXPECT_EQ(array.get(1).convert<std::string>(), "2-str");
+}
+
+TEST_F(JsonTest, Stringify)
+{
+    Poco::JSON::Object::Ptr object = new Poco::JSON::Object();
+    object->set("key", "value");
+
+    std::string stringified = Stringify(object);
+
+    aos::Error         err;
+    Poco::Dynamic::Var result;
+
+    ASSERT_NO_THROW(aos::Tie(result, err) = ParseJson(stringified));
+    ASSERT_EQ(result.type(), typeid(Poco::JSON::Object::Ptr));
+
+    ASSERT_TRUE(object->has("key"));
+    EXPECT_EQ(object->get("key").convert<std::string>(), "value");
 }
 
 } // namespace aos::common::utils

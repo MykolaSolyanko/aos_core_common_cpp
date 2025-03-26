@@ -7,10 +7,13 @@ ENV PATH="/root/.local/bin:${PATH}"
 
 RUN apt-get update \
     && apt-get install -y lcov cppcheck libsofthsm2 libsystemd-dev python3-pip\
-       pipx cmake git autotools-dev autoconf libtool pkg-config python3-jinja2 \
+    pipx cmake git autotools-dev autoconf libtool pkg-config python3-jinja2 \
+    zip curl \
+    libnl-3-dev libnl-route-3-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN pipx install conan
+RUN pipx install gcovr
 
 # Build conan dependencies
 
