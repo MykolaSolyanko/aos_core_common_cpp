@@ -136,7 +136,7 @@ class InterfaceManager : public sm::networkmanager::InterfaceManagerItf,
                          public sm::networkmanager::InterfaceFactoryItf {
 public:
     /**
-     * Initialize interface manager.
+     * Initializes interface manager.
      *
      * @param random random.
      * @return Error.
@@ -245,7 +245,7 @@ private:
     RetWithError<UniqueLink>          CreateLink() const;
     Error                             NLToAosErr(int nlError, const std::string& message) const;
 
-    crypto::RandomItf* mRandom;
+    crypto::RandomItf* mRandom {};
 };
 
 } // namespace aos::common::network

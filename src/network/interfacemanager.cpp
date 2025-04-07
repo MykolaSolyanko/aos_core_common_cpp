@@ -30,9 +30,10 @@ namespace aos::common::network {
 
 namespace {
 
-RetWithError<std::string> generateMACAddress(crypto::RandomItf& random)
+RetWithError<std::string> GenerateMACAddress(crypto::RandomItf& random)
 {
     StaticArray<uint8_t, 6> mac;
+
     if (auto err = random.RandBuffer(mac, mac.Size()); !err.IsNone()) {
         return {std::string(), AOS_ERROR_WRAP(err)};
     }
@@ -41,6 +42,7 @@ RetWithError<std::string> generateMACAddress(crypto::RandomItf& random)
     mac[0] = (mac[0] & 0xFE) | 0x02;
 
     std::stringstream ss;
+
     for (size_t i = 0; i < mac.Size(); ++i) {
         if (i > 0) {
             ss << ":";
@@ -539,7 +541,7 @@ Error InterfaceManager::CreateVlan(const String& name, uint64_t vlanId)
     vlanAttrs.mName        = name.CStr();
     vlanAttrs.mParentIndex = masterIndex;
 
-    if (Tie(vlanAttrs.mMac, err) = generateMACAddress(*mRandom); !err.IsNone()) {
+    if (Tie(vlanAttrs.mMac, err) = GenerateMACAddress(*mRandom); !err.IsNone()) {
         return err;
     }
 
