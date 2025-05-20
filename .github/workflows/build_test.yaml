@@ -50,16 +50,11 @@ jobs:
 
       - name: Build using SonarQube Build Wrapper
         run: |
-          mkdir build
-          conan profile detect --force
-          conan install ./conan/ --output-folder build --settings=build_type=Debug --build=missing
-          cmake -S . -B build  -DCMAKE_BUILD_TYPE=Debug -DWITH_TEST=ON -DWITH_COVERAGE=ON -G "Unix Makefiles" \
-                -DCMAKE_TOOLCHAIN_FILE=./conan_toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build ./build/ --config Debug --parallel
+          make -f scripts/Makefile build
 
       - name: Run Tests
         run: |
-          (cd build && ctest --repeat until-pass:2 --output-on-failure && make coverage)
+          make -f scripts/Makefile test
 
       - name: Upload test logs
         if: always()
