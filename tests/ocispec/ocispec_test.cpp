@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <Poco/JSON/Object.h>
 #include <gtest/gtest.h>
 
 #include <aos/common/tools/fs.hpp>
 #include <aos/test/log.hpp>
 
 #include "ocispec/ocispec.hpp"
+#include "utils/json.hpp"
 
 using namespace testing;
 
@@ -22,7 +24,7 @@ namespace {
  **********************************************************************************************************************/
 
 constexpr auto cTestBaseDir       = "ocispec_test_dir";
-const auto     cImageManifestPath = FS::JoinPath(cTestBaseDir, "image_manifest.json");
+const auto     cImageManifestPath = fs::JoinPath(cTestBaseDir, "image_manifest.json");
 constexpr auto cImageManifest     = R"({
     "schemaVersion": 2,
     "config": {
@@ -44,7 +46,7 @@ constexpr auto cImageManifest     = R"({
     ]
 }
 )";
-const auto     cImageSpecPath     = FS::JoinPath(cTestBaseDir, "image_spec.json");
+const auto     cImageSpecPath     = fs::JoinPath(cTestBaseDir, "image_spec.json");
 constexpr auto cImageSpec         = R"(
 {
     "architecture": "x86_64",
@@ -76,7 +78,7 @@ constexpr auto cImageSpec         = R"(
     "variant": "6"
 }
 )";
-const auto     cServiceSpecPath   = FS::JoinPath(cTestBaseDir, "service_spec.json");
+const auto     cServiceSpecPath   = fs::JoinPath(cTestBaseDir, "service_spec.json");
 constexpr auto cServiceSpec       = R"(
 {
     "created": "2024-12-31T23:59:59Z",
@@ -227,6 +229,29 @@ std::unique_ptr<aos::oci::RuntimeSpec> CreateRuntimeSpec()
     return res;
 }
 
+Poco::JSON::Object::Ptr ToJSON(const aos::RunParameters& params)
+{
+    Poco::JSON::Object object {Poco::JSON_PRESERVE_KEY_ORDER};
+
+    if (params.mStartInterval.HasValue()) {
+        object.set("startInterval", params.mStartInterval->ToISO8601String().CStr());
+    }
+
+    if (params.mStartBurst.HasValue()) {
+        object.set("startBurst", *params.mStartBurst);
+    }
+
+    if (params.mRestartInterval.HasValue()) {
+        object.set("restartInterval", params.mRestartInterval->ToISO8601String().CStr());
+    }
+
+    auto runParams = Poco::makeShared<Poco::JSON::Object>(object);
+
+    runParams->set("runParameters", object);
+
+    return runParams;
+}
+
 } // namespace
 
 /***********************************************************************************************************************
@@ -239,11 +264,11 @@ public:
     {
         test::InitLog();
 
-        FS::ClearDir(cTestBaseDir);
+        fs::ClearDir(cTestBaseDir);
 
-        FS::WriteStringToFile(cImageManifestPath, cImageManifest, S_IRUSR | S_IWUSR);
-        FS::WriteStringToFile(cImageSpecPath, cImageSpec, S_IRUSR | S_IWUSR);
-        FS::WriteStringToFile(cServiceSpecPath, cServiceSpec, S_IRUSR | S_IWUSR);
+        fs::WriteStringToFile(cImageManifestPath, cImageManifest, S_IRUSR | S_IWUSR);
+        fs::WriteStringToFile(cImageSpecPath, cImageSpec, S_IRUSR | S_IWUSR);
+        fs::WriteStringToFile(cServiceSpecPath, cServiceSpec, S_IRUSR | S_IWUSR);
     }
 
     oci::OCISpec mOCISpec;
@@ -258,7 +283,7 @@ TEST_F(OCISpecTest, LoadAndSaveImageManifest)
     auto lhsManifest = std::make_unique<aos::oci::ImageManifest>();
     auto rhsManifest = std::make_unique<aos::oci::ImageManifest>();
 
-    const auto savePath = FS::JoinPath(cTestBaseDir, "image-manifest-save.json");
+    const auto savePath = fs::JoinPath(cTestBaseDir, "image-manifest-save.json");
 
     ASSERT_TRUE(mOCISpec.LoadImageManifest(cImageManifestPath, *lhsManifest).IsNone());
     ASSERT_TRUE(mOCISpec.SaveImageManifest(savePath, *lhsManifest).IsNone());
@@ -273,7 +298,7 @@ TEST_F(OCISpecTest, LoadAndSaveImageSpec)
     auto lhsImageSpec = std::make_unique<aos::oci::ImageSpec>();
     auto rhsImageSpec = std::make_unique<aos::oci::ImageSpec>();
 
-    const auto savePath = FS::JoinPath(cTestBaseDir, "image-spec-save.json");
+    const auto savePath = fs::JoinPath(cTestBaseDir, "image-spec-save.json");
 
     ASSERT_TRUE(mOCISpec.LoadImageSpec(cImageSpecPath, *lhsImageSpec).IsNone());
     ASSERT_TRUE(mOCISpec.SaveImageSpec(savePath, *lhsImageSpec).IsNone());
@@ -289,9 +314,9 @@ TEST_F(OCISpecTest, LoadAndSaveRuntimeSpec)
     auto rhsRuntimeSpec = std::make_unique<aos::oci::RuntimeSpec>();
 
     ASSERT_TRUE(
-        mOCISpec.SaveRuntimeSpec(FS::JoinPath(cTestBaseDir, "runtime_spec_save.json"), *lhsRuntimeSpec).IsNone());
+        mOCISpec.SaveRuntimeSpec(fs::JoinPath(cTestBaseDir, "runtime_spec_save.json"), *lhsRuntimeSpec).IsNone());
     ASSERT_TRUE(
-        mOCISpec.LoadRuntimeSpec(FS::JoinPath(cTestBaseDir, "runtime_spec_save.json"), *rhsRuntimeSpec).IsNone());
+        mOCISpec.LoadRuntimeSpec(fs::JoinPath(cTestBaseDir, "runtime_spec_save.json"), *rhsRuntimeSpec).IsNone());
 
     ASSERT_EQ(*lhsRuntimeSpec, *rhsRuntimeSpec);
 }
@@ -301,7 +326,7 @@ TEST_F(OCISpecTest, LoadAndSaveServiceSpec)
     auto lhsServiceConfig = std::make_unique<aos::oci::ServiceConfig>();
     auto rhsServiceConfig = std::make_unique<aos::oci::ServiceConfig>();
 
-    const auto savePath = FS::JoinPath(cTestBaseDir, "service-config-save.json");
+    const auto savePath = fs::JoinPath(cTestBaseDir, "service-config-save.json");
 
     ASSERT_TRUE(mOCISpec.LoadServiceConfig(cServiceSpecPath, *lhsServiceConfig).IsNone());
     ASSERT_TRUE(mOCISpec.SaveServiceConfig(savePath, *lhsServiceConfig).IsNone());
@@ -309,6 +334,35 @@ TEST_F(OCISpecTest, LoadAndSaveServiceSpec)
     ASSERT_TRUE(mOCISpec.LoadServiceConfig(savePath, *rhsServiceConfig).IsNone());
 
     ASSERT_EQ(*lhsServiceConfig, *rhsServiceConfig);
+}
+
+TEST_F(OCISpecTest, LoadServiceConfigRunParams)
+{
+    const std::vector<aos::RunParameters> runParams = {
+        {{0}, {}, {}},
+        {{}, {0}, {}},
+        {{}, {}, {0}},
+        {{}, {}, {}},
+        {{1 * aos::Time::cSeconds}, {1 * aos::Time::cSeconds}, {1}},
+    };
+
+    for (size_t i = 0; i < runParams.size(); ++i) {
+        LOG_DBG() << "Running test case #" << i;
+
+        auto configPath = fs::JoinPath(cTestBaseDir, "run-params-config-");
+        configPath.Append(std::to_string(i).c_str()).Append(".json");
+
+        EXPECT_EQ(common::utils::WriteJsonToFile(ToJSON(runParams[i]), configPath.CStr()), ErrorEnum::eNone);
+
+        auto expectedServiceConfig            = std::make_unique<aos::oci::ServiceConfig>();
+        expectedServiceConfig->mRunParameters = runParams[i];
+
+        auto parsedServiceConfig = std::make_unique<aos::oci::ServiceConfig>();
+
+        ASSERT_EQ(mOCISpec.LoadServiceConfig(configPath, *parsedServiceConfig), ErrorEnum::eNone);
+
+        ASSERT_EQ(expectedServiceConfig->mRunParameters, parsedServiceConfig->mRunParameters);
+    }
 }
 
 } // namespace aos::common::jsonprovider

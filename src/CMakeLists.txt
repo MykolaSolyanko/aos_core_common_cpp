@@ -22,6 +22,10 @@ find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(Systemd libsystemd REQUIRED)
 
+# Add libnl dependencies
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(Libnl libnl-3.0 libnl-route-3.0 REQUIRED)
+
 # ######################################################################################################################
 # Defines
 # ######################################################################################################################
@@ -38,6 +42,7 @@ include_directories(${AOS_CORE_COMMON_LIB_DIR}/include)
 
 add_subdirectory(jsonprovider)
 add_subdirectory(logger)
+add_subdirectory(logprovider)
 add_subdirectory(migration)
 add_subdirectory(ocispec)
 add_subdirectory(utils)

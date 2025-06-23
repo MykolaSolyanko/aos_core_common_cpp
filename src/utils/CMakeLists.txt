@@ -12,16 +12,20 @@ set(TARGET aosutils)
 # ######################################################################################################################
 
 set(SOURCES
+    cleanupmanager.cpp
     cryptohelper.cpp
     exception.cpp
     filesystem.cpp
+    fsplatform.cpp
     grpchelper.cpp
     image.cpp
     json.cpp
     parser.cpp
+    pk11uri.cpp
     pkcs11helper.cpp
     retry.cpp
     time.cpp
+    utils.cpp
 )
 
 # ######################################################################################################################
